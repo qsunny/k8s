@@ -75,6 +75,7 @@ kubectl describe services example-service
 kubectl get pods --selector="run=load-balancer-example" --output=wide
 kubectl delete services example-service
 kubectl delete deployment hello-world
+kubectl apply -k ./
 
 /var/lib/kubelet/config.yaml
 /var/lib/kubelet/kubeadm-flags.env
@@ -123,6 +124,52 @@ kubectl rollout history deployment/java-demo  #查看应用历史版本
 kubectl rollout undo deployment/java-demo   #回滚到之前的版本
 kubectl rollout undo deployment/java-demo --to-revision=1   #回到指定的历史版本
 kubectl rollout status deploy/java-demo    #查看发布情况
+
+# 搭建NFS服务
+# 服务器端防火墙开放111、662、875、892、2049的 tcp / udp 允许，否则远端客户无法连接
+netstat -tnal |grep 111、662、875、892、2049
+firewall-cmd --zone=public --add-port=892/tcp --permanent
+firewall-cmd --zone=public --add-port=892/udp --permanent
+firewall-cmd --reload
+firewall-cmd --list-port
+ # 安装nfs
+yum install -y nfs-utils
+# 创建nfs目录
+mkdir -p /nfs/data/
+mkdir -p /nfs/data/mysql
+# 授予权限
+chmod -R 777 /nfs/data
+# 编辑export文件
+vi /etc/exports
+  /nfs/data *(insecure,rw,no_root_squash,sync)
+# 使得配置生效
+exportfs -r
+# 查看生效
+exportfs
+# 启动rpcbind、nfs服务
+systemctl restart rpcbind && systemctl enable rpcbind
+systemctl start nfs-server && systemctl enable nfs-server
+# 查看rpc服务的注册情况
+rpcinfo -p localhost
+# showmount测试
+showmount -e 192.168.1.5
+# 报错rpc mount export: RPC: Unable to receive; errno = No route to host
+firewall-cmd --add-service=nfs --permanent
+firewall-cmd --add-service=rpc-bind --permanent
+firewall-cmd --add-service=mountd --permanent
+
+
+# 客户端安装
+yum -y install nfs-utils
+systemctl start nfs && systemctl enable nfs 
+# 执行以下命令检查 nfs 服务器端是否有设置共享目录
+showmount -e 192.168.1.5
+# 挂载目录到本机
+mkdir -p /nfs/nfsmount
+# mount -t nfs $(nfs服务器的IP):/root/nfs_root /root/nfsmount
+mount -t nfs 192.168.1.5:/nfs/data /nfs/nfsmount
+# 写入一个测试文件
+echo "hello nfs server" > /nfs/nfsmount/test.txt
 
 
 # 下载并安装sealos, sealos是个golang的二进制工具，直接下载拷贝到bin目录即可, release页面也可下载
