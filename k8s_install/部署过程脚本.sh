@@ -115,6 +115,7 @@ kubectl get pod -o wide -A
 kubectl get ingress -A
 kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx --watch
 kubectl logs -f -n ingress-nginx   nginx-ingress-controller-57c9688cff-xtdcx
+kubectl exec nginx-76d945c598-bjn4h -it -- /bin/sh
 
 
 # 应用滚动升级
@@ -195,3 +196,6 @@ sudo tee /etc/docker/daemon.json <<-'EOF'
 EOF
 sudo systemctl daemon-reload
 sudo systemctl restart docker
+
+
+https://github.com/chinaboy007/kube-prometheus
