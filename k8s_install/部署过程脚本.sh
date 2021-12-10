@@ -33,9 +33,12 @@ kubectl drain k8s.node1 --delete-local-data --force --ignore-daemonsets
 kubectl delete node k8s.node1
 kubectl get componentstatus
 kubectl config view
+# 查看名称为 “e2e” 的用户的密码
+$ kubectl config view -o jsonpath='{.users[?(@.name == "e2e")].user.password}'
 kubectl cluster-info
 kubectl get replicaset
 kubectl get node --show-labels
+kubectl apply -f deployment.yaml --record
 
 kubeadm config images list
 ### 重置节点 ###
@@ -106,6 +109,7 @@ openssl req -new -x509 -key ingress-key.pem -out ingress.pem -subj /C=CN/ST=Guan
 kubectl create secret tls ingress-secret --key ingress-key.pem --cert ingress.pem 
 kubectl apply -f mandatory.yaml
 kubectl apply -f ingress-nginx.yaml
+kubectl create --validate -f mypod.yaml
 # 下面几个命令用于查看相关组件
 kubectl get ingress -o wide -A
 kubectl get secret -o wide -A
@@ -113,10 +117,140 @@ kubectl get deploy -o wide -A
 kubectl get svc -o wide -A
 kubectl get pod -o wide -A
 kubectl get ingress -A
+kubectl get pods --selector=name=nginx,type=frontend
 kubectl get pods --all-namespaces -l app.kubernetes.io/name=ingress-nginx --watch
+# 获取命名空间下所有运行中的 pod
+$ kubectl get pods --field-selector=status.phase=Running
 kubectl logs -f -n ingress-nginx   nginx-ingress-controller-57c9688cff-xtdcx
 kubectl exec nginx-76d945c598-bjn4h -it -- /bin/sh
+确认当前user信息
+kubectl config current-context
+kubectl config use-context my-cluster-name  # 设置默认的上下文为 my-cluster-name
+kubectl config get-contexts
 
+
+#卸载 要卸载kubeadm功能。
+kubectl drain <node name> --delete-local-data --force --ignore-daemonsets
+kubectl delete node <node name>
+# 然后，在要删除的节点上，重置所有kubeadm安装状态：
+kubeadm reset
+
+# node 和集群交互
+kubectl cordon my-node                                                # 标记节点 my-node 为不可调度
+kubectl drain my-node                                                 # 准备维护时，排除节点 my-node
+kubectl uncordon my-node                                              # 标记节点 my-node 为可调度
+kubectl top node my-node                                              # 显示给定节点的度量值
+kubectl cluster-info                                                  # 显示 master 和 service 的地址
+kubectl cluster-info dump                                             # 将集群的当前状态转储到标准输出
+kubectl cluster-info dump --output-directory=/path/to/cluster-state   # 将集群的当前状态转储到目录 /path/to/cluster-state
+
+kubectl logs my-pod                                 # 转储 pod 日志到标准输出
+kubectl logs my-pod -c my-container                 # 有多个容器的情况下，转储 pod 中容器的日志到标准输出
+kubectl logs -f my-pod                              # pod 日志流向标准输出
+kubectl logs -f my-pod -c my-container              # 有多个容器的情况下，pod 中容器的日志流到标准输出
+kubectl run -i --tty busybox --image=busybox -- sh  # 使用交互的 shell 运行 pod
+kubectl attach my-pod -i                            # 关联到运行中的容器
+kubectl port-forward my-pod 5000:6000               # 在本地监听 5000 端口，然后转到 my-pod 的 6000 端口
+kubectl exec my-pod -- ls /                         # 1 个容器的情况下，在已经存在的 pod 中运行命令
+kubectl exec my-pod -c my-container -- ls /         # 多个容器的情况下，在已经存在的 pod 中运行命令
+kubectl top pod POD_NAME --containers               # 显示 pod 及其容器的度量
+kubectl --namespace monitoring port-forward svc/prometheus-k8s 9090
+kubectl create deployment java-demo --image=yueming33990/java-demo --dry-run -o yaml > deploy.yaml
+kubectl expose deployment java-demo --port=80 --target-port=8080 --type=NodePort -o yaml --dry-run > svc.yaml
+
+
+# 查看、查找资源
+# 具有基本输出的 get 命令
+kubectl get services                          # 列出命名空间下的所有 service
+kubectl get pods --all-namespaces             # 列出所有命名空间下的 pod
+kubectl get pods -o wide                      # 列出命名空间下所有 pod，带有更详细的信息
+kubectl get deployment my-dep                 # 列出特定的 deployment
+kubectl get pods --include-uninitialized      # 列出命名空间下所有的 pod，包括未初始化的对象
+
+# 有详细输出的 describe 命令
+kubectl describe nodes my-node
+kubectl describe pods my-pod
+
+kubectl get services --sort-by=.metadata.name # List Services Sorted by Name
+
+# 根据重启次数排序，列出所有 pod
+kubectl get pods --sort-by='.status.containerStatuses[0].restartCount'
+
+# 查询带有标签 app=cassandra 的所有 pod，获取它们的 version 标签值
+kubectl get pods --selector=app=cassandra rc -o \
+  jsonpath='{.items[*].metadata.labels.version}'
+
+# 获取命名空间下所有运行中的 pod
+kubectl get pods --field-selector=status.phase=Running
+
+# 所有所有节点的 ExternalIP
+kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}'
+
+# 列出输出特定 RC 的所有 pod 的名称
+# "jq" 命令对那些 jsonpath 看来太复杂的转换非常有用，可以在这找到：https://stedolan.github.io/jq/
+sel=${$(kubectl get rc my-rc --output=json | jq -j '.spec.selector | to_entries | .[] | "\(.key)=\(.value),"')%?}
+echo $(kubectl get pods --selector=$sel --output=jsonpath={.items..metadata.name})
+
+# 检查那些节点已经 ready
+JSONPATH='{range .items[*]}{@.metadata.name}:{range @.status.conditions[*]}{@.type}={@.status};{end}{end}' \
+ && kubectl get nodes -o jsonpath="$JSONPATH" | grep "Ready=True"
+
+# 列出某个 pod 目前在用的所有 Secret
+kubectl get pods -o json | jq '.items[].spec.containers[].env[]?.valueFrom.secretKeyRef.name' | grep -v null | sort | uniq
+
+# 列出通过 timestamp 排序的所有 Event
+kubectl get events --sort-by=.metadata.creationTimestamp
+
+# 修补资源
+kubectl patch node k8s-node-1 -p '{"spec":{"unschedulable":true}}' # 部分更新节点
+# 更新容器的镜像，spec.containers[*].name 是必需的，因为它们是一个合并键
+kubectl patch pod valid-pod -p '{"spec":{"containers":[{"name":"kubernetes-serve-hostname","image":"new image"}]}}'
+# 使用带有数组位置信息的 json 修补程序更新容器镜像
+kubectl patch pod valid-pod --type='json' -p='[{"op": "replace", "path": "/spec/containers/0/image", "value":"new image"}]'
+# 使用带有数组位置信息的 json 修补程序禁用 deployment 的 livenessProbe
+kubectl patch deployment valid-deployment  --type json   -p='[{"op": "remove", "path": "/spec/template/spec/containers/0/livenessProbe"}]'
+# 增加新的元素到数组指定的位置中
+kubectl patch sa default --type='json' -p='[{"op": "add", "path": "/secrets/1", "value": {"name": "whatever" } }]'
+
+# 更新资源
+kubectl rolling-update frontend-v1 -f frontend-v2.json           # 滚动更新 pod：frontend-v1
+kubectl rolling-update frontend-v1 frontend-v2 --image=image:v2  # 变更资源的名称并更新镜像
+kubectl rolling-update frontend --image=image:v2                 # 更新 pod 的镜像
+kubectl rolling-update frontend-v1 frontend-v2 --rollback        # 中止进行中的过程
+cat pod.json | kubectl replace -f -                              # 根据传入标准输入的 JSON 替换一个 pod
+
+# 强制替换，先删除，然后再重建资源。会导致服务中断。
+kubectl replace --force -f ./pod.json
+
+# 为副本控制器（rc）创建服务，它开放 80 端口，并连接到容器的 8080 端口
+kubectl expose rc nginx --port=80 --target-port=8000
+
+# 更新单容器的 pod，将其镜像版本（tag）更新到 v4
+kubectl get pod mypod -o yaml | sed 's/\(image: myimage\):.*$/\1:v4/' | kubectl replace -f -
+
+kubectl label pods my-pod new-label=awesome                      # 增加标签
+kubectl annotate pods my-pod icon-url=http://goo.gl/XXBTWq       # 增加注释
+kubectl autoscale deployment foo --min=2 --max=10                # 将名称为 foo 的 deployment 设置为自动扩缩容
+
+# 删除资源
+kubectl delete -f ./pod.json                                              # 使用 pod.json 中指定的类型和名称删除 pod
+kubectl delete pod,service baz foo                                        # 删除名称为 "baz" 和 "foo" 的 pod 和 service
+kubectl delete pods,services -l name=myLabel                              # 删除带有标签 name=myLabel 的 pod 和 service
+kubectl delete pods,services -l name=myLabel --include-uninitialized      # 删除带有标签 name=myLabel 的 pod 和 service，包括未初始化的对象
+kubectl -n my-ns delete po,svc --all       
+
+# 缩放资源
+kubectl scale --replicas=3 rs/foo                                 # 缩放名称为 'foo' 的 replicaset，调整其副本数为 3
+kubectl scale --replicas=3 -f foo.yaml                            # 缩放在 "foo.yaml" 中指定的资源，调整其副本数为 3
+kubectl scale --current-replicas=2 --replicas=3 deployment/mysql  # 如果名称为 mysql 的 deployment 目前规模为 2，将其规模调整为 3
+kubectl scale --replicas=5 rc/foo rc/bar rc/baz                   # 缩放多个副本控制器
+
+# 编辑资源
+kubectl edit svc/docker-registry                      # 编辑名称为 docker-registry 的 service
+KUBE_EDITOR="nano" kubectl edit svc/docker-registry   # 使用 alternative 编辑器
+
+# 如果带有该键和效果的污点已经存在，则将按指定的方式替换其值
+kubectl taint nodes foo dedicated=special-user:NoSchedule
 
 # 应用滚动升级
 kubectl apply -f springboot-example-deployment.yaml
@@ -125,6 +259,31 @@ kubectl rollout history deployment/java-demo  #查看应用历史版本
 kubectl rollout undo deployment/java-demo   #回滚到之前的版本
 kubectl rollout undo deployment/java-demo --to-revision=1   #回到指定的历史版本
 kubectl rollout status deploy/java-demo    #查看发布情况
+
+# 更新资源
+kubectl rolling-update frontend-v1 -f frontend-v2.json           # 滚动更新 pod：frontend-v1
+kubectl rolling-update frontend-v1 frontend-v2 --image=image:v2  # 变更资源的名称并更新镜像
+kubectl rolling-update frontend --image=image:v2                 # 更新 pod 的镜像
+kubectl rolling-update frontend-v1 frontend-v2 --rollback        # 中止进行中的过程
+cat pod.json | kubectl replace -f -                              # 根据传入标准输入的 JSON 替换一个 pod
+
+# 强制替换，先删除，然后再重建资源。会导致服务中断。
+kubectl replace --force -f ./pod.json
+
+# 为副本控制器（rc）创建服务，它开放 80 端口，并连接到容器的 8080 端口
+kubectl expose rc nginx --port=80 --target-port=8000
+
+# 更新单容器的 pod，将其镜像版本（tag）更新到 v4
+kubectl get pod mypod -o yaml | sed 's/\(image: myimage\):.*$/\1:v4/' | kubectl replace -f -
+
+kubectl label pods my-pod new-label=awesome                      # 增加标签
+kubectl annotate pods my-pod icon-url=http://goo.gl/XXBTWq       # 增加注释
+kubectl autoscale deployment foo --min=2 --max=10                # 将名称为 foo 的 deployment 设置为自动扩缩容
+
+kubectl get ingress
+kubectl describe svc/mysql
+kubectl describe endpoints/mysql
+#手动创建无头服务及endpoint，引入外部数据库，然后通过k8s集群中的域名解析服务访问，访问的主机名格式为：[svc_name].[namespace_name].svc.cluster.local。
 
 # 搭建NFS服务
 # 服务器端防火墙开放111、662、875、892、2049的 tcp / udp 允许，否则远端客户无法连接
@@ -194,8 +353,7 @@ sudo tee /etc/docker/daemon.json <<-'EOF'
   "registry-mirrors": ["https://6ikg7eqs.mirror.aliyuncs.com"]
 }
 EOF
-sudo systemctl daemon-reload
-sudo systemctl restart docker
+systemctl daemon-reload && systemctl restart docker
 
 
 https://github.com/chinaboy007/kube-prometheus

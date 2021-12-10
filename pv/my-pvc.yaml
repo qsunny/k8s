@@ -1,0 +1,13 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: my-pvc
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+    # 我们定义了1M的PVC,storageClass会自动给我们创建这个资源,不用再去手动创建1M的PV
+      storage: 1Gi
+  # 这个名字要和上面创建的storageclass名称一致
+  storageClassName: example-nfs

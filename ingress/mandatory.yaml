@@ -212,21 +212,18 @@ spec:
     spec:
       # wait up to five minutes for the drain of connections
       terminationGracePeriodSeconds: 300
-      hostNetwork: true # 这个是添加的内容
       serviceAccountName: nginx-ingress-serviceaccount
       nodeSelector:
         kubernetes.io/os: linux
-        #kubernetes.io/hostname: 192.168.1.10
       containers:
         - name: nginx-ingress-controller
-          #image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.30.0
-          image: docker.io/xzxiaoshan/nginx-ingress-controller:0.30.0
+          image: quay.io/kubernetes-ingress-controller/nginx-ingress-controller:0.30.0
           args:
             - /nginx-ingress-controller
             - --configmap=$(POD_NAMESPACE)/nginx-configuration
             - --tcp-services-configmap=$(POD_NAMESPACE)/tcp-services
             - --udp-services-configmap=$(POD_NAMESPACE)/udp-services
-            # - --publish-service=$(POD_NAMESPACE)/ingress-nginx
+            - --publish-service=$(POD_NAMESPACE)/ingress-nginx
             - --annotations-prefix=nginx.ingress.kubernetes.io
           securityContext:
             allowPrivilegeEscalation: true

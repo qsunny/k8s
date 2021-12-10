@@ -9,6 +9,7 @@ spec:
   - port: 80
     protocol: TCP
     targetPort: 8080
+    name: http
     nodePort: 30018
   selector:
     app: java-demo

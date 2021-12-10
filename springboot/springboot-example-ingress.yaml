@@ -1,13 +1,18 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: java-demo
+  name: java-demo-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-  - host: yunlang.com
-    http:
-      paths:
-      - path: /
-        backend:
-          serviceName: java-demo
-          servicePort: 80
+    - host: yunlang.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: java-demo
+                port:
+                  number: 80
