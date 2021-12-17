@@ -26,11 +26,11 @@ spec:
           protocol: TCP
         resources:
           requests:
-            cpu: 0.5
-            memory: 0.7Gi
+            cpu: "0.5"
+            memory: "700Mi"
           limits:
-            cpu: 1
-            memory: 0.7Gi
+            cpu: "0.5"
+            memory: "700Mi"
         livenessProbe:
           httpGet:
             path: /

@@ -285,6 +285,11 @@ kubectl describe svc/mysql
 kubectl describe endpoints/mysql
 #手动创建无头服务及endpoint，引入外部数据库，然后通过k8s集群中的域名解析服务访问，访问的主机名格式为：[svc_name].[namespace_name].svc.cluster.local。
 
+# https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml
+使用下面的命令查看 webhook
+kubectl get validatingwebhookconfigurations
+kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+
 # 搭建NFS服务
 # 服务器端防火墙开放111、662、875、892、2049的 tcp / udp 允许，否则远端客户无法连接
 netstat -tnal |grep 111、662、875、892、2049
