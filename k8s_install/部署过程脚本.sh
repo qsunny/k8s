@@ -285,8 +285,13 @@ kubectl describe svc/mysql
 kubectl describe endpoints/mysql
 #手动创建无头服务及endpoint，引入外部数据库，然后通过k8s集群中的域名解析服务访问，访问的主机名格式为：[svc_name].[namespace_name].svc.cluster.local。
 
-  https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/baremetal/deploy.yaml
-# https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml
+# configmap
+kubectl create configmap game-config-2 --from-file=game.properties --from-file=ui.properties
+kubectl describe cm game-config-2
+kubectl get pod/redis configmap/example-redis-config 
+
+# https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/baremetal/deploy.yaml
+# 云服务商 https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.0/deploy/static/provider/cloud/deploy.yaml
 使用下面的命令查看 webhook
 kubectl get validatingwebhookconfigurations
 kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission

@@ -5,6 +5,9 @@ metadata:
     app: java-demo
   name: java-demo
 spec:
+  # externalIPs:
+  # - 172.128.128.10
+  # - 172.128.128.11
   ports:
   - port: 80
     targetPort: 8080
