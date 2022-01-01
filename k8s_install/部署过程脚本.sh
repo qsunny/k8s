@@ -285,6 +285,15 @@ kubectl describe svc/mysql
 kubectl describe endpoints/mysql
 #手动创建无头服务及endpoint，引入外部数据库，然后通过k8s集群中的域名解析服务访问，访问的主机名格式为：[svc_name].[namespace_name].svc.cluster.local。
 
+# Kubernetes 基础对象清理
+kubectl get pods --all-namespaces -o wide | grep Evicted | awk '{print $1,$2}' | xargs -L1 kubectl delete pod -n
+kubectl get pods --all-namespaces -o wide | grep Error | awk '{print $1,$2}' | xargs -L1 kubectl delete pod -n
+kubectl get pods --all-namespaces -o wide | grep Completed | awk '{print $1,$2}' | xargs -L1 kubectl delete pod -n
+# 清理没有被使用的 PV
+kubectl describe -A pvc | grep -E "^Name:.*$|^Namespace:.*$|^Used By:.*$" | grep -B 2 "<none>" | grep -E "^Name:.*$|^Namespace:.*$" | cut -f2 -d: | paste -d " " - - | xargs -n2 bash -c 'kubectl -n ${1} delete pvc ${0}'
+# 清理没有被绑定的 PVC
+kubectl get pvc --all-namespaces | tail -n +2 | grep -v Bound | awk '{print $1,$2}' | xargs -L1 kubectl delete pvc -n
+
 # configmap
 kubectl create configmap game-config-2 --from-file=game.properties --from-file=ui.properties
 kubectl describe cm game-config-2
@@ -295,6 +304,14 @@ kubectl get pod/redis configmap/example-redis-config
 使用下面的命令查看 webhook
 kubectl get validatingwebhookconfigurations
 kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission
+
+# 调试问题 
+kubectl run -it --rm --restart=Never busybox-test --image=busybox sh
+kubectl get pods -l app=java-demo \
+    -o go-template='{{range .items}}{{.status.podIP}}{{"\n"}}{{end}}'
+for ep in 10.244.2.49:8080 10.244.1.58:8080 10.244.2.48:8080; do
+    wget -qO- $ep
+done
 
 # 搭建NFS服务
 # 服务器端防火墙开放111、662、875、892、2049的 tcp / udp 允许，否则远端客户无法连接
