@@ -1,0 +1,31 @@
+kind: RuntimeClass
+apiVersion: node.k8s.io/v1
+metadata:
+    name: kata-fc
+handler: kata-fc
+overhead:
+    podFixed:
+        memory: "120Mi"
+        cpu: "250m"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-pod
+spec:
+  runtimeClassName: kata-fc
+  containers:
+  - name: busybox-ctr
+    image: busybox
+    stdin: true
+    tty: true
+    resources:
+      limits:
+        cpu: 500m
+        memory: 100Mi
+  - name: nginx-ctr
+    image: nginx
+    resources:
+      limits:
+        cpu: 1500m
+        memory: 100Mi

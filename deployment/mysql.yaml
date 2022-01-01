@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: default
+spec:
+  clusterIP: None
+  ports:
+  - name: mysql
+    port: 3308
+    protocol: TCP
+    targetPort: 3308
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: mysql
+  namespace: default
+subsets:
+- addresses:
+  - ip: 47.115.41.15
+  ports:
+  - name: mysql
+    port: 3308
+    protocol: TCP # 创建service及endpoint # kubectl apply -f mysql.yml
