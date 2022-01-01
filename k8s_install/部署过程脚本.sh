@@ -157,7 +157,7 @@ kubectl top pod POD_NAME --containers               # 显示 pod 及其容器的
 kubectl --namespace monitoring port-forward svc/prometheus-k8s 9090
 kubectl create deployment java-demo --image=yueming33990/java-demo --dry-run -o yaml > deploy.yaml
 kubectl expose deployment java-demo --port=80 --target-port=8080 --type=NodePort -o yaml --dry-run > svc.yaml
-
+kubectl label nodes <node-name> <label-key>=<label-value>
 
 # 查看、查找资源
 # 具有基本输出的 get 命令
@@ -182,6 +182,7 @@ kubectl get pods --selector=app=cassandra rc -o \
 
 # 获取命名空间下所有运行中的 pod
 kubectl get pods --field-selector=status.phase=Running
+kubectl get pods -w -l app=nginx
 
 # 所有所有节点的 ExternalIP
 kubectl get nodes -o jsonpath='{.items[*].status.addresses[?(@.type=="ExternalIP")].address}'
@@ -293,6 +294,36 @@ kubectl get pods --all-namespaces -o wide | grep Completed | awk '{print $1,$2}'
 kubectl describe -A pvc | grep -E "^Name:.*$|^Namespace:.*$|^Used By:.*$" | grep -B 2 "<none>" | grep -E "^Name:.*$|^Namespace:.*$" | cut -f2 -d: | paste -d " " - - | xargs -n2 bash -c 'kubectl -n ${1} delete pvc ${0}'
 # 清理没有被绑定的 PVC
 kubectl get pvc --all-namespaces | tail -n +2 | grep -v Bound | awk '{print $1,$2}' | xargs -L1 kubectl delete pvc -n
+
+# 隔离你的集群中除 4 个节点以外的所有节点
+kubectl cordon <node-name>
+kubectl get pdb zk-pdb
+# 使用 kubectl drain 来隔离和腾空 zk-0 Pod 调度所在的节点。
+kubectl drain $(kubectl get pod zk-0 --template {{.spec.nodeName}}) --ignore-daemonsets --force --delete-emptydir-data
+# 使用 kubectl uncordon 来取消对第一个节点的隔离。
+kubectl uncordon kubernetes-node-pb41
+
+# kubectl scale 扩展副本数为 5
+kubectl scale sts web --replicas=5
+# 将 StatefulSet 缩容回三个副本
+kubectl patch sts web -p '{"spec":{"replicas":3}}'
+# Patch web StatefulSet 来执行 RollingUpdate 更新策略
+kubectl patch statefulset web -p '{"spec":{"updateStrategy":{"type":"RollingUpdate"}}}'
+# StatefulSet 来再次的改变容器镜像
+kubectl patch statefulset web --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"gcr.io/google_containers/nginx-slim:0.8"}]'
+# 获取 Pod 来查看他们的容器镜像
+for p in 0 1 2; do kubectl get pod "web-$p" --template '{{range $i, $c := .spec.containers}}{{$c.image}}{{end}}'; echo; done
+你还可以使用 kubectl rollout status sts/<name> 来查看 rolling update 的状态
+# 使用 RollingUpdate 更新策略的 partition 参数来分段更新一个 StatefulSet
+kubectl patch statefulset web -p '{"spec":{"updateStrategy":{"type":"RollingUpdate","rollingUpdate":{"partition":3}}}}'
+kubectl patch statefulset web --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"k8s.gcr.io/nginx-slim:0.7"}]'
+# 非级联删除 --cascade=orphan 只删除 StatefulSet 而不要删除它的任何 Pod
+kubectl delete statefulset web --cascade=orphan
+# 级联删除 
+kubectl delete statefulset web
+# sts is an abbreviation for statefulset
+kubectl delete sts web
+
 
 # configmap
 kubectl create configmap game-config-2 --from-file=game.properties --from-file=ui.properties

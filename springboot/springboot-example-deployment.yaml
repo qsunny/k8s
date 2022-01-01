@@ -17,7 +17,7 @@ spec:
       imagePullSecrets: 
       - name: "docker-regsitry-auth"
       containers:
-      - image: harbor.cn/library/hello-example:1.0.1
+      - image: harbor.cn/yunlang/hello-example:1.0.6
         name: java-demo
         imagePullPolicy: Always
         ports:
